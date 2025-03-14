@@ -47,14 +47,14 @@ contract VisitorNFT is ERC721, Ownable {
         if (msg.sender != relayer) {
             revert VisitorNFT__Unauthorized();
         }
-        if (balanceOf(to) >= 1) {  // BalanceOf Revert with ERC721InvalidOwner(address) if to == address(0) !
+        if (balanceOf(to) >= 1) {  // BalanceOf Revert with ERC721InvalidOwner(address) if to == address !
             revert VisitorNFT__CantOwnMoreThanOne();  
         }
 
         unchecked { totalMinted++; }
         uint256 tokenId = totalMinted; 
 
-        _safeMint(to, tokenId); and emit Transfer event read by Websocket
+        _safeMint(to, tokenId); // Emit Transfer event read by Websocket
         _tokenURIs[tokenId] = metadataURI; 
     }
 

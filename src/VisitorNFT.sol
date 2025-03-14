@@ -12,7 +12,6 @@ import {Strings} from "@openzeppelin/utils/Strings.sol";
 contract VisitorNFT is ERC721, Ownable {
     using Strings for uint256;
 
-    error VisitorNFT__MintFailed();
     error VisitorNFT__CantOwnMoreThanOne();
     error VisitorNFT__Unauthorized();
 
@@ -68,32 +67,7 @@ contract VisitorNFT is ERC721, Ownable {
         relayer = _relayer;
     }
 
-    /**
-     * @notice Updates the base URI for token metadata (only callable by owner).
-     * @param baseURI The new base URI.
-     */
-    function setTokenBaseURI(string memory baseURI) external onlyOwner {
-        _baseTokenURI = baseURI;
-    }
-
     /*** GETTERS ***/
-
-    /**
-     * @notice Returns the address of the authorized relayer.
-     * @return The relayer address.
-     */
-    function getRelayer() external view returns (address) {
-        return relayer;
-    }
-
-    /**
-     * @notice Returns the base URI for token metadata.
-     * @return The base URI string.
-     */
-    function _baseURI() internal view override returns (string memory) {
-        return _baseTokenURI;
-    }
-
     /**
      * @notice Returns the URI for a specific token, prioritizing specific URI over base URI.
      * @param tokenId The ID of the token to query.

@@ -1,83 +1,146 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC721} from "@openzeppelin/token/ERC721/ERC721.sol";
-import {Ownable} from "@openzeppelin/access/Ownable.sol";
-import {Strings} from "@openzeppelin/utils/Strings.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-/**
- * @title VisitorNFT
- * @dev ERC-721 contract for minting unique visitor badges with custom metadata URIs, restricted to a relayer.
- */
 contract VisitorNFT is ERC721, Ownable {
     using Strings for uint256;
 
+    error VisitorNFT__MaxSupplyReached();
+    error VisitorNFT__MintFailed();
     error VisitorNFT__CantOwnMoreThanOne();
     error VisitorNFT__Unauthorized();
 
-    uint256 public totalMinted = 0; // Total number of NFTs minted
-    string private _baseTokenURI;   // Base URI for token metadata
-    mapping(uint256 => string) private _tokenURIs; // Mapping of tokenId to specific metadata URI
-    address public relayer;         // Address authorized to mint (relayer)
+    // uint16 public constant MAX_SUPPLY = 1000;
+    uint256 public totalMinted = 0;
+    string private _baseTokenURI;
+    mapping(uint256 => string) private _tokenURIs;
+    address public relayer; // Relayer address
 
-    /**
-     * @notice Initializes the contract with a base URI and relayer address.
-     * @param baseURI The base URI for token metadata (can be overridden by specific URIs).
-     * @param _relayer The address allowed to call the mint function.
-     */
-    constructor(string memory baseURI, address _relayer) 
-        ERC721("Visitor", "VNFT") 
-        Ownable(msg.sender) 
-    {
+    constructor(string memory baseURI, address _relayer) ERC721("Visitor", "VNFT") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
+        relayer = _relayer; 
+    }
+
+    /*** GETTERS ***/
+
+    /// @notice Retourne l'URI de base pour les NFT
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    /// @notice Retourne l'URI du token
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "ERC721: URI query for nonexistent token");
+        string memory specificURI = _tokenURIs[tokenId];
+        return bytes(specificURI).length > 0 ? specificURI : string(abi.encodePacked(_baseURI(), tokenId.toString()));
+    }
+
+    /*** ADMIN ***/
+
+    /// @notice Change l'adresse du relayer
+    function setRelayer(address _relayer) external onlyOwner {
         relayer = _relayer;
     }
 
     /*** MINTING ***/
 
-    /**
-     * @notice Mints a new NFT to the specified address with a custom metadata URI.
-     * @dev Only the relayer can call this function. One NFT per address limit enforced.
-     * @param to The recipient address of the NFT.
-     * @param metadataURI The URI pointing to the NFT's metadata (e.g., IPFS link).
-     */
+    /// @notice Mint un NFT à `to` avec `metadataURI`, uniquement via le relayer
     function entryMint(address to, string calldata metadataURI) external {
-        
         if (msg.sender != relayer) {
             revert VisitorNFT__Unauthorized();
         }
-        if (balanceOf(to) >= 1) {  // BalanceOf Revert with ERC721InvalidOwner(address) if to == address !
-            revert VisitorNFT__CantOwnMoreThanOne();  
+        if (balanceOf(to) >= 1) {
+            revert VisitorNFT__CantOwnMoreThanOne();
         }
+        /*if (totalMinted >= MAX_SUPPLY) {
+            revert VisitorNFT__MaxSupplyReached();
+        }*/
 
-        unchecked { totalMinted++; }
-        uint256 tokenId = totalMinted; 
+        // Augmenter totalMinted AVANT d'émettre le token
+        totalMinted++;
+        uint256 tokenId = totalMinted;
+ ⁄
 
-        _safeMint(to, tokenId); // Emit Transfer event read by Websocket
-        _tokenURIs[tokenId] = metadataURI; 
+        // Mint direct sans appel externe
+        _safeMint(to, tokenId);
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
+contract VisitorNFT is ERC721, Ownable {
+    using Strings for uint256;
+
+    error VisitorNFT__MaxSupplyReached();
+    error VisitorNFT__CantOwnMoreThanOne();
+    error VisitorNFT__Unauthorized();
+
+    // uint16 public constant MAX_SUPPLY = 1000;
+    uint256 public totalMinted = 0;
+    string private _baseTokenURI;
+    mapping(uint256 => string) private _tokenURIs;
+    address public relayer; // Relayer address
+
+    constructor(string memory baseURI, address _relayer) ERC721("Visitor", "VNFT") Ownable(msg.sender) {
+        _baseTokenURI = baseURI;
+        relayer = _relayer; 
     }
 
-    /*** ADMIN FUNCTIONS ***/
+    /*** GETTERS ***/
 
-    /**
-     * @notice Updates the relayer address (only callable by owner).
-     * @param _relayer The new relayer address.
-     */
+    /// @notice Return BaseURI
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    /// @notice Return tokenURI
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "ERC721: URI query for nonexistent token");
+        string memory specificURI = _tokenURIs[tokenId];
+        return bytes(specificURI).length > 0 ? specificURI : string(abi.encodePacked(_baseURI(), tokenId.toString()));
+    }
+
+    /*** ADMIN ***/
+
+    /// @notice Change relayer Address
     function setRelayer(address _relayer) external onlyOwner {
         relayer = _relayer;
     }
 
-    /*** GETTERS ***/
-    /**
-     * @notice Returns the URI for a specific token, prioritizing specific URI over base URI.
-     * @param tokenId The ID of the token to query.
-     * @return The token's metadata URI.
-     */
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_ownerOf(tokenId) != address(0), "ERC721: URI query for nonexistent token");
-        string memory specificURI = _tokenURIs[tokenId];
-        return bytes(specificURI).length > 0 
-            ? specificURI 
-            : string(abi.encodePacked(_baseURI(), tokenId.toString()));
+    /// @notice Change baseURI 
+    function setTokenBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
     }
+
+    /*** MINTING ***/
+
+    /// @notice Mint NFT 
+    function entryMint(address to, string calldata metadataURI) external {
+        if (msg.sender != relayer) {
+            revert VisitorNFT__Unauthorized();
+        }
+        if (balanceOf(to) >= 1) {
+            revert VisitorNFT__CantOwnMoreThanOne(); // ERC721.balanceOf() checks for address(0)
+        }
+        /*if (totalMinted >= MAX_SUPPLY) {
+            revert VisitorNFT__MaxSupplyReached();
+        }*/
+
+        totalMinted++;
+        uint256 tokenId = totalMinted;
+ 
+        // Mint 
+        _safeMint(to, tokenId); // Emits the 'transfer' event read by the websocket
+        _tokenURIs[tokenId] = metadataURI;
+
+    }
+
 }
+
+
+
